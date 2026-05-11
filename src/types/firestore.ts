@@ -110,6 +110,7 @@ export interface SancionFirestore {
   fecha: Timestamp;
   tipo: string;
   descripcion: string;
+  cantidad: number;
   duracionDias?: number;
   activo: boolean;
   autorRef: DocumentReference<UserFirestore>;

@@ -25,6 +25,7 @@ const sidebarItems = [
   { label: 'Boletines', path: '/dashboard/boletines', icon: '📄', roles: ['admin', 'coordinador', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo'] as UserRole[] },
   { label: 'Calificadores', path: '/dashboard/calificadores', icon: '📊', roles: ['admin', 'coordinador', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo'] as UserRole[] },
   { label: 'Certificados', path: '/dashboard/certificados', icon: '🎓', roles: ['admin', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo'] as UserRole[] },
+  { label: 'Historial de Sanciones', path: '/dashboard/reportes-sanciones', icon: '📋', roles: ['admin', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo'] as UserRole[] },
 ];
 
 export default function DashboardLayout() {

@@ -102,18 +102,15 @@ function BoletinImprimible({ data, cursoNombre, anio, modoCompleto, config }: Bo
   const t2 = inasistencias.find((i) => i.trimestre === 2);
   const t3 = inasistencias.find((i) => i.trimestre === 3);
 
-  const sancionesT1 = sanciones.filter((s) => {
-    const d = new Date(s.fecha.seconds * 1000);
-    return d >= new Date(`${anio}-03-01`) && d < new Date(`${anio}-06-01`);
-  }).length;
-  const sancionesT2 = sanciones.filter((s) => {
-    const d = new Date(s.fecha.seconds * 1000);
-    return d >= new Date(`${anio}-06-01`) && d < new Date(`${anio}-09-01`);
-  }).length;
-  const sancionesT3 = sanciones.filter((s) => {
-    const d = new Date(s.fecha.seconds * 1000);
-    return d >= new Date(`${anio}-09-01`) && d < new Date(`${anio}-12-01`);
-  }).length;
+  const sancionesT1 = sanciones
+    .filter((s) => { const d = new Date(s.fecha.seconds * 1000); return d >= new Date(`${anio}-03-01`) && d < new Date(`${anio}-06-01`); })
+    .reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
+  const sancionesT2 = sanciones
+    .filter((s) => { const d = new Date(s.fecha.seconds * 1000); return d >= new Date(`${anio}-06-01`) && d < new Date(`${anio}-09-01`); })
+    .reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
+  const sancionesT3 = sanciones
+    .filter((s) => { const d = new Date(s.fecha.seconds * 1000); return d >= new Date(`${anio}-09-01`) && d < new Date(`${anio}-12-01`); })
+    .reduce((acc, s) => acc + (s.cantidad ?? 1), 0);
 
   const asignaturasPrevias = materias.filter((m) => {
     const cal = getCalByMateria(m.id);

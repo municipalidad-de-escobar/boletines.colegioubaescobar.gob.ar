@@ -5,6 +5,7 @@ import {
   Center,
   Group,
   Loader,
+  NumberInput,
   Select,
   Table,
   Text,
@@ -61,6 +62,7 @@ export default function SancionesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [tipo, setTipo] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [cantidad, setCantidad] = useState<number>(1);
   const [duracionDias, setDuracionDias] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -69,6 +71,7 @@ export default function SancionesPage() {
   const [editSancion, setEditSancion] = useState<SancionDoc | null>(null);
   const [editTipo, setEditTipo] = useState('');
   const [editDescripcion, setEditDescripcion] = useState('');
+  const [editCantidad, setEditCantidad] = useState<number>(1);
   const [editDuracionDias, setEditDuracionDias] = useState('');
 
   const tipoOptions = [
@@ -161,6 +164,7 @@ export default function SancionesPage() {
         fecha: Timestamp.now(),
         tipo,
         descripcion,
+        cantidad,
         ...(duracionDias ? { duracionDias: Number(duracionDias) } : {}),
         activo: true,
         autorRef: doc(db, 'users', user.uid) as any,
@@ -169,6 +173,7 @@ export default function SancionesPage() {
       setModalOpen(false);
       setTipo('');
       setDescripcion('');
+      setCantidad(1);
       setDuracionDias('');
 
       // Recargar sanciones
@@ -190,6 +195,7 @@ export default function SancionesPage() {
     setEditSancion(sancion);
     setEditTipo(sancion.tipo);
     setEditDescripcion(sancion.descripcion);
+    setEditCantidad(sancion.cantidad ?? 1);
     setEditDuracionDias(sancion.duracionDias ? String(sancion.duracionDias) : '');
     setEditModal(true);
   };
@@ -201,6 +207,7 @@ export default function SancionesPage() {
       await updateSancion(editSancion.id, {
         tipo: editTipo,
         descripcion: editDescripcion,
+        cantidad: editCantidad,
         duracionDias: editDuracionDias ? Number(editDuracionDias) : undefined,
       });
       setEditModal(false);
@@ -312,6 +319,7 @@ export default function SancionesPage() {
                     <Table.Th>Fecha</Table.Th>
                     <Table.Th>Tipo</Table.Th>
                     <Table.Th>Descripción</Table.Th>
+                    <Table.Th>Cantidad</Table.Th>
                     <Table.Th>Duración</Table.Th>
                     <Table.Th>Estado</Table.Th>
                     <Table.Th>Acciones</Table.Th>
@@ -327,6 +335,7 @@ export default function SancionesPage() {
                         <Table.Td>{fecha}</Table.Td>
                         <Table.Td>{sancion.tipo}</Table.Td>
                         <Table.Td>{sancion.descripcion}</Table.Td>
+                        <Table.Td style={{ textAlign: 'center' }}>{sancion.cantidad ?? 1}</Table.Td>
                         <Table.Td>
                           {sancion.duracionDias ? `${sancion.duracionDias} día${sancion.duracionDias !== 1 ? 's' : ''}` : '—'}
                         </Table.Td>
@@ -389,6 +398,12 @@ export default function SancionesPage() {
             required
             minRows={3}
           />
+          <NumberInput
+            label="Cantidad de sanciones"
+            value={cantidad}
+            onChange={(v) => setCantidad(typeof v === 'number' ? v : 1)}
+            min={1}
+          />
           <TextInput
             label="Duración en días (opcional)"
             type="number"
@@ -429,6 +444,12 @@ export default function SancionesPage() {
             placeholder="Describa la sanción"
             required
             minRows={3}
+          />
+          <NumberInput
+            label="Cantidad de sanciones"
+            value={editCantidad}
+            onChange={(v) => setEditCantidad(typeof v === 'number' ? v : 1)}
+            min={1}
           />
           <TextInput
             label="Duración en días (opcional)"

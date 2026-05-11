@@ -10,6 +10,7 @@ import CargaNotasPage from '../pages/CargaNotasPage';
 import InasistenciasPage from '../pages/InasistenciasPage';
 import SancionesPage from '../pages/SancionesPage';
 import BoletinesPage from '../pages/BoletinesPage';
+import ReportesSancionesPage from '../pages/ReportesSancionesPage';
 import CalificadoresPage from '../pages/CalificadoresPage';
 import CertificadosPage from '../pages/CertificadosPage';
 
@@ -157,6 +158,22 @@ const router = createBrowserRouter([
             ]}
           >
             <CertificadosPage />
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: 'reportes-sanciones',
+        element: (
+          <PrivateRoute
+            allowedRoles={[
+              'admin',
+              'jefe_coordinacion',
+              'regente',
+              'secretaria',
+              'directivo',
+            ]}
+          >
+            <ReportesSancionesPage />
           </PrivateRoute>
         ),
       },
