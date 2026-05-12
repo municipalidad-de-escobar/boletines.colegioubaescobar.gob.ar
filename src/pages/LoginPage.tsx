@@ -10,7 +10,7 @@ import {
   Alert,
   Box,
 } from '@mantine/core';
-import { signInWithGoogle } from '../services/firebase/auth';
+import { signInWithGoogle, handleGoogleRedirect } from '../services/firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
@@ -18,6 +18,13 @@ export default function LoginPage() {
   const { user, loading, error } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Handle the redirect result when returning from Google OAuth
+  useEffect(() => {
+    handleGoogleRedirect().then(({ error }) => {
+      if (error) setLocalError(error);
+    });
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -28,15 +35,8 @@ export default function LoginPage() {
   const handleSignIn = async () => {
     setLocalError(null);
     setIsSigningIn(true);
-    const result = await signInWithGoogle();
-    setIsSigningIn(false);
-
-    if (result.error) {
-      setLocalError(result.error);
-      return;
-    }
-
-    navigate('/dashboard', { replace: true });
+    await signInWithGoogle();
+    // Page will redirect to Google; execution stops here.
   };
 
   return (

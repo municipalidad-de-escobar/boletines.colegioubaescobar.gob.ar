@@ -1,29 +1,28 @@
 import {
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 
-interface AuthResult {
-  user: FirebaseUser | null;
-  error: string | null;
+export async function signInWithGoogle(): Promise<void> {
+  const provider = new GoogleAuthProvider();
+  await signInWithRedirect(auth, provider);
 }
 
-export async function signInWithGoogle(): Promise<AuthResult> {
+export async function handleGoogleRedirect(): Promise<{ error: string | null }> {
   try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-
+    await getRedirectResult(auth);
     // Domain/guest validation is handled by AuthContext.onAuthStateChanged
     // as the single source of truth.
-    return { user: result.user, error: null };
+    return { error: null };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Error al iniciar sesión con Google';
-    return { user: null, error: errorMessage };
+    return { error: errorMessage };
   }
 }
 
