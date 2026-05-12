@@ -84,15 +84,29 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactNode {
           return;
         }
 
-        // Verify email domain
-        if (!firebaseUser.email?.endsWith('@colegioubaescobar.gob.ar')) {
-          console.warn('Invalid email domain:', firebaseUser.email);
-          await signOut();
-          setUser(null);
-          setUserData(null);
-          setError('El email debe pertenecer al dominio @colegioubaescobar.gob.ar');
-          setLoading(false);
-          return;
+        // Verify email domain or active guest access
+        const isInstitutionalDomain = firebaseUser.email?.endsWith('@colegioubaescobar.gob.ar');
+
+        if (!isInstitutionalDomain) {
+          const guestQuery = query(
+            collection(db, 'guestAccess'),
+            where('email', '==', firebaseUser.email)
+          );
+          const guestSnapshot = await getDocs(guestQuery);
+          const now = Timestamp.now();
+          const hasValidGuest = guestSnapshot.docs.some(
+            (d) => (d.data().expiresAt as ReturnType<typeof Timestamp.now>)?.toMillis() > now.toMillis()
+          );
+
+          if (!hasValidGuest) {
+            console.warn('Invalid email domain:', firebaseUser.email);
+            await signOut();
+            setUser(null);
+            setUserData(null);
+            setError('El email debe pertenecer al dominio @colegioubaescobar.gob.ar');
+            setLoading(false);
+            return;
+          }
         }
 
         // Fetch user document from Firestore
