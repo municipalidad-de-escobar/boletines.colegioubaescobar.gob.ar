@@ -12,17 +12,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Firebase loaded at login, not on app boot
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          // PDF printing loaded on demand
-          'pdf-libs': ['react-to-print'],
-          // CSV parsing loaded on demand
-          'csv-libs': ['papaparse'],
-          // React core
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // Mantine UI
-          'ui-vendor': ['@mantine/core', '@mantine/hooks', '@mantine/dates'],
+        manualChunks(id) {
+          if (id.includes('node_modules/firebase')) return 'firebase';
+          if (id.includes('node_modules/react-to-print')) return 'pdf-libs';
+          if (id.includes('node_modules/papaparse')) return 'csv-libs';
+          if (id.includes('node_modules/@mantine')) return 'ui-vendor';
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router')
+          ) return 'react-vendor';
         },
       },
     },
