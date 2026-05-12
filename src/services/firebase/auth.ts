@@ -7,38 +7,19 @@ import {
 } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 
-const INSTITUTIONAL_DOMAIN = '@colegioubaescobar.gob.ar';
-
 interface AuthResult {
   user: FirebaseUser | null;
   error: string | null;
 }
 
-const validateInstitutionalEmail = (email: string): boolean => {
-  return email.endsWith(INSTITUTIONAL_DOMAIN);
-};
-
 export async function signInWithGoogle(): Promise<AuthResult> {
   try {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      hd: 'colegioubaescobar.gob.ar',
-    });
-
     const result = await signInWithPopup(auth, provider);
-    const { user } = result;
 
-    if (!user.email || !validateInstitutionalEmail(user.email)) {
-      await firebaseSignOut(auth);
-      return {
-        user: null,
-        error: `Acceso denegado. Por favor, utiliza tu cuenta institucional ${INSTITUTIONAL_DOMAIN}`,
-      };
-    }
-
-    // All other validation (Firestore user exists, active, profesoresPendientes)
-    // is handled by AuthContext.onAuthStateChanged as the single source of truth.
-    return { user, error: null };
+    // Domain/guest validation is handled by AuthContext.onAuthStateChanged
+    // as the single source of truth.
+    return { user: result.user, error: null };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Error al iniciar sesión con Google';
