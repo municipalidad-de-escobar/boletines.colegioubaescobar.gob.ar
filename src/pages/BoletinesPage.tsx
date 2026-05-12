@@ -7,6 +7,7 @@ import {
   Group,
   Loader,
   Select,
+  Stack,
   Text,
   Title,
   Alert,
@@ -472,41 +473,52 @@ export default function BoletinesPage() {
           <>
             {/* NAVEGACIÓN */}
             <Paper p="md" withBorder mb="md">
-              <Group justify="space-between" align="center">
-                <Group gap="xs">
-                  <ActionIcon
-                    variant="outline"
-                    disabled={selectedAlumnoIdx === 0}
-                    onClick={() => setSelectedAlumnoIdx((i) => i - 1)}
-                    size="lg"
-                  >
-                    ←
-                  </ActionIcon>
-                  <Text fw={600}>
-                    {alumnos[selectedAlumnoIdx]?.lastName}, {alumnos[selectedAlumnoIdx]?.firstName}
-                  </Text>
-                  <Text c="dimmed" size="sm">
-                    ({selectedAlumnoIdx + 1} de {boletines.length})
-                  </Text>
-                  <ActionIcon
-                    variant="outline"
-                    disabled={selectedAlumnoIdx === boletines.length - 1}
-                    onClick={() => setSelectedAlumnoIdx((i) => i + 1)}
-                    size="lg"
-                  >
-                    →
-                  </ActionIcon>
+              <Stack gap="sm">
+                <Group justify="space-between" align="center">
+                  <Group gap="xs">
+                    <ActionIcon
+                      variant="outline"
+                      disabled={selectedAlumnoIdx === 0}
+                      onClick={() => setSelectedAlumnoIdx((i) => i - 1)}
+                      size="lg"
+                    >
+                      ←
+                    </ActionIcon>
+                    <Text fw={600}>
+                      {alumnos[selectedAlumnoIdx]?.lastName}, {alumnos[selectedAlumnoIdx]?.firstName}
+                    </Text>
+                    <Text c="dimmed" size="sm">
+                      ({selectedAlumnoIdx + 1} de {boletines.length})
+                    </Text>
+                    <ActionIcon
+                      variant="outline"
+                      disabled={selectedAlumnoIdx === boletines.length - 1}
+                      onClick={() => setSelectedAlumnoIdx((i) => i + 1)}
+                      size="lg"
+                    >
+                      →
+                    </ActionIcon>
+                  </Group>
+
+                  <Group gap="xs">
+                    <Button variant="outline" onClick={handlePrintSingle}>
+                      Imprimir este boletín
+                    </Button>
+                    <Button onClick={handlePrintAll}>
+                      Imprimir curso completo
+                    </Button>
+                  </Group>
                 </Group>
 
-                <Group gap="xs">
-                  <Button variant="outline" onClick={handlePrintSingle}>
-                    Imprimir este boletín
-                  </Button>
-                  <Button onClick={handlePrintAll}>
-                    Imprimir curso completo
-                  </Button>
-                </Group>
-              </Group>
+                <Select
+                  placeholder="Buscar alumno por nombre..."
+                  data={alumnos.map((a, i) => ({ value: String(i), label: `${a.lastName}, ${a.firstName}` }))}
+                  value={String(selectedAlumnoIdx)}
+                  onChange={(v) => v !== null && setSelectedAlumnoIdx(Number(v))}
+                  searchable
+                  style={{ maxWidth: 320 }}
+                />
+              </Stack>
             </Paper>
 
             {/* VISTA PREVIA — alumno actual */}

@@ -8,6 +8,7 @@ import {
   Select,
   Table,
   Text,
+  TextInput,
   Title,
   Alert,
   NumberInput,
@@ -56,6 +57,7 @@ export default function InasistenciasPage() {
   const [alumnos, setAlumnos] = useState<(AlumnoFirestore & { id: string })[]>([]);
   const [inasistencias, setInasistencias] = useState<InasistenciaDisplay[]>([]);
 
+  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export default function InasistenciasPage() {
       try {
         const alumnosData = await getAlumnosByCurso(selectedCursoId, cicloLectivoActivo.anio);
         setAlumnos(alumnosData);
+        setSearchText('');
 
         const inasistenciasData: InasistenciaDisplay[] = await Promise.all(
           alumnosData.map(async (alumno) => {
@@ -230,6 +233,12 @@ export default function InasistenciasPage() {
           <Center py="xl"><Loader /></Center>
         ) : alumnos.length > 0 ? (
           <>
+            <TextInput
+              placeholder="Buscar por apellido o nombre"
+              value={searchText}
+              onChange={(e) => setSearchText(e.currentTarget.value)}
+              mb="sm"
+            />
             <Box style={{ overflowX: 'auto' }}>
               <Table highlightOnHover verticalSpacing="xs" style={{ minWidth: 900 }}>
                 <Table.Thead>
@@ -246,7 +255,13 @@ export default function InasistenciasPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {inasistencias.map((ina) => {
+                  {inasistencias.filter((ina) => {
+                    if (!searchText) return true;
+                    const alumno = alumnos.find((a) => a.id === ina.alumnoId);
+                    if (!alumno) return false;
+                    const q = searchText.toLowerCase();
+                    return alumno.lastName.toLowerCase().includes(q) || alumno.firstName.toLowerCase().includes(q);
+                  }).map((ina) => {
                     const alumno = alumnos.find((a) => a.id === ina.alumnoId);
                     if (!alumno) return null;
                     const total = ina.t1_cantidad + ina.t2_cantidad + ina.t3_cantidad;
