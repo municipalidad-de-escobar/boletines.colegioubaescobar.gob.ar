@@ -14,6 +14,11 @@ import { onAuthStateChanged, signOut } from '../services/firebase/auth';
 import { db } from '../services/firebase/firebaseConfig';
 import { getUserById, getCicloLectivoActivo } from '../services/firebase/firestore';
 import type { UserFirestore, CicloLectivoFirestore } from '../types/firestore';
+import type { UserRole } from '../types/roles';
+
+const VALID_ROLES: readonly UserRole[] = [
+  'admin', 'profesor', 'coordinador', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo',
+];
 
 // ============================================================================
 // TYPES
@@ -117,15 +122,26 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactNode {
 
             // Found pending profesor, create user document
             const pendienteDoc = pendientesSnapshot.docs[0];
-            const pendienteData = pendienteDoc.data() as any;
+            const pendienteData = pendienteDoc.data();
+            const pendienteRole = pendienteData?.role as string | undefined;
+
+            if (!pendienteRole || !VALID_ROLES.includes(pendienteRole as UserRole)) {
+              console.error('Invalid role in profesoresPendientes:', pendienteRole);
+              await signOut();
+              setUser(null);
+              setUserData(null);
+              setError('Configuración de usuario inválida. Contactá al administrador.');
+              setLoading(false);
+              return;
+            }
 
             const newUserData: UserFirestore = {
               displayName: firebaseUser.displayName ?? firebaseUser.email ?? 'Usuario',
-              firstName: pendienteData.firstName,
-              lastName: pendienteData.lastName,
-              email: pendienteData.email,
-              role: pendienteData.role,
-              active: pendienteData.active,
+              firstName: pendienteData.firstName as string,
+              lastName: pendienteData.lastName as string,
+              email: pendienteData.email as string,
+              role: pendienteRole as UserRole,
+              active: Boolean(pendienteData.active),
               createdAt: Timestamp.now(),
               updatedAt: Timestamp.now(),
             };

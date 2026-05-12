@@ -536,11 +536,12 @@ export async function upsertInasistencia(
   try {
     const inasistenciaId = data.id || doc(collection(db, 'inasistencias')).id;
     const docRef = doc(db, 'inasistencias', inasistenciaId);
+    const { id: _id, ...rest } = data;
 
     await setDoc(
       docRef,
       {
-        ...data,
+        ...rest,
         updatedAt: Timestamp.now(),
       },
       { merge: true }
@@ -692,7 +693,7 @@ export async function getConfigInstitucional(): Promise<ConfigInstitucional | nu
 }
 
 export async function updateConfigInstitucional(
-  data: Record<string, string>
+  data: Partial<ConfigInstitucional>
 ): Promise<void> {
   try {
     const docRef = doc(db, 'config', 'institucional');

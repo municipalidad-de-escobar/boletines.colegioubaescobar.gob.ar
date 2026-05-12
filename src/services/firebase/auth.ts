@@ -5,15 +5,12 @@ import {
   onAuthStateChanged as firebaseOnAuthStateChanged,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from './firebaseConfig';
-import type { UserFirestore } from '../../types/firestore';
+import { auth } from './firebaseConfig';
 
 const INSTITUTIONAL_DOMAIN = '@colegioubaescobar.gob.ar';
 
 interface AuthResult {
   user: FirebaseUser | null;
-  userData: UserFirestore | null;
   error: string | null;
 }
 
@@ -35,48 +32,17 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       await firebaseSignOut(auth);
       return {
         user: null,
-        userData: null,
         error: `Acceso denegado. Por favor, utiliza tu cuenta institucional ${INSTITUTIONAL_DOMAIN}`,
       };
     }
 
-    // Verificar que el usuario existe en Firestore y está activo
-    const userDocRef = doc(db, 'users', user.uid);
-    const userDocSnap = await getDoc(userDocRef);
-
-    if (!userDocSnap.exists()) {
-      await firebaseSignOut(auth);
-      return {
-        user: null,
-        userData: null,
-        error: 'Tu cuenta no está registrada en el sistema. Contacta al administrador.',
-      };
-    }
-
-    const userData = userDocSnap.data() as UserFirestore;
-
-    if (!userData.active) {
-      await firebaseSignOut(auth);
-      return {
-        user: null,
-        userData: null,
-        error: 'Tu cuenta ha sido desactivada. Contacta al administrador.',
-      };
-    }
-
-    return {
-      user,
-      userData,
-      error: null,
-    };
+    // All other validation (Firestore user exists, active, profesoresPendientes)
+    // is handled by AuthContext.onAuthStateChanged as the single source of truth.
+    return { user, error: null };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Error al iniciar sesión con Google';
-    return {
-      user: null,
-      userData: null,
-      error: errorMessage,
-    };
+    return { user: null, error: errorMessage };
   }
 }
 

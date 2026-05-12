@@ -38,8 +38,8 @@ export default function PrivateRoute({
     return <Navigate to="/login" replace />;
   }
 
-  // Check role-based access control
-  if (allowedRoles && userData && !allowedRoles.includes(userData.role)) {
+  // Check role-based access control — deny when userData is missing or role not allowed
+  if (allowedRoles && (!userData || !allowedRoles.includes(userData.role))) {
     return <AccessDeniedPage />;
   }
 
