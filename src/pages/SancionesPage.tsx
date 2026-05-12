@@ -49,7 +49,7 @@ type AlumnoDoc = AlumnoFirestore & { id: string };
 // ============================================================================
 
 export default function SancionesPage() {
-  const { user, userData, cicloLectivoActivo } = useAuth();
+  const { user, userData, cicloLectivoActivo, isReadOnly } = useAuth();
 
   const [cursos, setCursos] = useState<(CursoFirestore & { id: string })[]>([]);
   const [selectedCursoId, setSelectedCursoId] = useState('');
@@ -297,7 +297,7 @@ export default function SancionesPage() {
             style={{ flex: 2 }}
           />
         )}
-        {selectedAlumnoId && (
+        {selectedAlumnoId && !isReadOnly && (
           <Button onClick={() => setModalOpen(true)}>
             + Nueva sanción
           </Button>
@@ -354,25 +354,29 @@ export default function SancionesPage() {
                             </Badge>
                           </Table.Td>
                           <Table.Td>
-                            <Group gap="xs">
-                              <Button
-                                variant="outline"
-                                size="xs"
-                                onClick={() => openEditModal(sancion)}
-                              >
-                                Editar
-                              </Button>
-                              {sancion.activo && (
+                            {!isReadOnly ? (
+                              <Group gap="xs">
                                 <Button
                                   variant="outline"
-                                  color="gray"
                                   size="xs"
-                                  onClick={() => handleDesactivar(sancion.id)}
+                                  onClick={() => openEditModal(sancion)}
                                 >
-                                  Desactivar
+                                  Editar
                                 </Button>
-                              )}
-                            </Group>
+                                {sancion.activo && (
+                                  <Button
+                                    variant="outline"
+                                    color="gray"
+                                    size="xs"
+                                    onClick={() => handleDesactivar(sancion.id)}
+                                  >
+                                    Desactivar
+                                  </Button>
+                                )}
+                              </Group>
+                            ) : (
+                              <Text size="xs" c="dimmed">—</Text>
+                            )}
                           </Table.Td>
                         </Table.Tr>
                       );

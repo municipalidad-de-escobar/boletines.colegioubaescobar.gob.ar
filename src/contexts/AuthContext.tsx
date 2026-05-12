@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import {
   collection,
@@ -14,15 +14,23 @@ import { onAuthStateChanged, signOut } from '../services/firebase/auth';
 import { db } from '../services/firebase/firebaseConfig';
 import { getUserById, getCicloLectivoActivo } from '../services/firebase/firestore';
 import type { UserFirestore, CicloLectivoFirestore } from '../types/firestore';
-import type { UserRole } from '../types/roles';
+import { isReadOnlyRole, type UserRole } from '../types/roles';
+import {
+  INSTITUTIONAL_DOMAIN,
+  isAuditorEmail,
+  isInstitutionalEmail,
+} from '../config/auditors';
 
 const VALID_ROLES: readonly UserRole[] = [
-  'admin', 'profesor', 'coordinador', 'jefe_coordinacion', 'regente', 'secretaria', 'directivo',
+  'admin',
+  'profesor',
+  'coordinador',
+  'jefe_coordinacion',
+  'regente',
+  'secretaria',
+  'directivo',
+  'auditor',
 ];
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -30,31 +38,48 @@ interface AuthContextType {
   cicloLectivoActivo: CicloLectivoFirestore | null;
   loading: boolean;
   error: string | null;
+  isReadOnly: boolean;
+  isAuditor: boolean;
 }
 
-// ============================================================================
-// CONTEXT
-// ============================================================================
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// ============================================================================
-// PROVIDER
-// ============================================================================
 
 export interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// ----------------------------------------------------------------------------
+// Synthetic auditor profile
+// Auditors don't need a Firestore `users` document. We synthesize one in-memory
+// based on their Firebase Auth profile so the rest of the app can keep reading
+// userData uniformly.
+// ----------------------------------------------------------------------------
+function buildAuditorProfile(firebaseUser: FirebaseUser): UserFirestore {
+  const displayName = firebaseUser.displayName ?? firebaseUser.email ?? 'Auditor/a';
+  const [firstName = 'Auditor/a', ...rest] = displayName.split(' ');
+  const lastName = rest.join(' ') || 'Externo/a';
+  const now = Timestamp.now();
+  return {
+    displayName,
+    firstName,
+    lastName,
+    email: firebaseUser.email ?? '',
+    role: 'auditor',
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+    photoURL: firebaseUser.photoURL ?? undefined,
+  };
+}
+
 export function AuthProvider({ children }: AuthProviderProps): React.ReactNode {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<UserFirestore | null>(null);
-  const [cicloLectivoActivo, setCicloLectivoActivo] = useState<CicloLectivoFirestore | null>(null);
+  const [cicloLectivoActivo, setCicloLectivoActivo] =
+    useState<CicloLectivoFirestore | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
 
-  // Load ciclo lectivo activo once on mount
   useEffect(() => {
     const loadCiclo = async () => {
       try {
@@ -65,18 +90,24 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactNode {
         setError('No se pudo cargar el ciclo lectivo activo');
       }
     };
-
     loadCiclo();
   }, []);
 
-  // Listen to auth state changes
   useEffect(() => {
     setLoading(true);
+
+    const reject = async (msg: string, logCtx?: unknown) => {
+      if (logCtx !== undefined) console.warn(msg, logCtx);
+      await signOut();
+      setUser(null);
+      setUserData(null);
+      setError(msg);
+      setLoading(false);
+    };
 
     const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
       try {
         if (!firebaseUser) {
-          // No authenticated user
           setUser(null);
           setUserData(null);
           setError(null);
@@ -84,159 +115,124 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactNode {
           return;
         }
 
-        // Verify email domain or active guest access
-        const isInstitutionalDomain = firebaseUser.email?.endsWith('@colegioubaescobar.gob.ar');
+        const email = firebaseUser.email;
 
-        if (!isInstitutionalDomain) {
-          const guestQuery = query(
-            collection(db, 'guestAccess'),
-            where('email', '==', firebaseUser.email)
-          );
-          const guestSnapshot = await getDocs(guestQuery);
-          const now = Timestamp.now();
-          const hasValidGuest = guestSnapshot.docs.some(
-            (d) => (d.data().expiresAt as ReturnType<typeof Timestamp.now>)?.toMillis() > now.toMillis()
-          );
-
-          if (!hasValidGuest) {
-            console.warn('Invalid email domain:', firebaseUser.email);
-            await signOut();
-            setUser(null);
-            setUserData(null);
-            setError('El email debe pertenecer al dominio @colegioubaescobar.gob.ar');
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Fetch user document from Firestore
-        const userDoc = await getUserById(firebaseUser.uid);
-
-        if (!userDoc) {
-          // User document not found, check profesoresPendientes
-          console.warn('User document not found, checking profesoresPendientes:', firebaseUser.uid);
-          
-          try {
-            const q = query(
-              collection(db, 'profesoresPendientes'),
-              where('email', '==', firebaseUser.email)
-            );
-            const pendientesSnapshot = await getDocs(q);
-
-            if (pendientesSnapshot.empty) {
-              // No pending profesor found
-              console.warn('No pending profesor found for email:', firebaseUser.email);
-              await signOut();
-              setUser(null);
-              setUserData(null);
-              setError('Usuario no registrado en el sistema. Contactá al administrador.');
-              setLoading(false);
-              return;
-            }
-
-            // Found pending profesor, create user document
-            const pendienteDoc = pendientesSnapshot.docs[0];
-            const pendienteData = pendienteDoc.data();
-            const pendienteRole = pendienteData?.role as string | undefined;
-
-            if (!pendienteRole || !VALID_ROLES.includes(pendienteRole as UserRole)) {
-              console.error('Invalid role in profesoresPendientes:', pendienteRole);
-              await signOut();
-              setUser(null);
-              setUserData(null);
-              setError('Configuración de usuario inválida. Contactá al administrador.');
-              setLoading(false);
-              return;
-            }
-
-            const newUserData: UserFirestore = {
-              displayName: firebaseUser.displayName ?? firebaseUser.email ?? 'Usuario',
-              firstName: pendienteData.firstName as string,
-              lastName: pendienteData.lastName as string,
-              email: pendienteData.email as string,
-              role: pendienteRole as UserRole,
-              active: Boolean(pendienteData.active),
-              createdAt: Timestamp.now(),
-              updatedAt: Timestamp.now(),
-            };
-
-            // Create user document
-            const userRef = doc(db, 'users', firebaseUser.uid);
-            await setDoc(userRef, newUserData);
-
-            // Delete from profesoresPendientes
-            await deleteDoc(pendienteDoc.ref);
-
-            console.log('Profesor registrado exitosamente:', firebaseUser.uid);
-
-            // All checks passed
-            setUser(firebaseUser);
-            setUserData(newUserData);
-            setError(null);
-            setLoading(false);
-          } catch (err) {
-            console.error('Error processing pending profesor:', err);
-            await signOut();
-            setUser(null);
-            setUserData(null);
-            setError('Error al registrar usuario. Contactá al administrador.');
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Verify active status
-        if (!userDoc.active) {
-          console.warn('User is not active:', firebaseUser.uid);
-          await signOut();
-          setUser(null);
-          setUserData(null);
-          setError('Usuario desactivado. Contacte al administrador.');
+        // ---- Auditor bypass --------------------------------------------------
+        // Specific Gmail accounts get read-only access without a Firestore user
+        // document. They are short-circuited here before any other lookups.
+        if (isAuditorEmail(email)) {
+          setUser(firebaseUser);
+          setUserData(buildAuditorProfile(firebaseUser));
+          setError(null);
           setLoading(false);
           return;
         }
 
-        // All checks passed
+        // ---- Institutional domain gate ---------------------------------------
+        if (!isInstitutionalEmail(email)) {
+          await reject(
+            `Solo se permite el acceso con una cuenta institucional @${INSTITUTIONAL_DOMAIN}.`,
+            email,
+          );
+          return;
+        }
+
+        // ---- Existing user --------------------------------------------------
+        const userDoc = await getUserById(firebaseUser.uid);
+
+        if (userDoc) {
+          if (!userDoc.active) {
+            await reject('Usuario desactivado. Contactá al administrador.', firebaseUser.uid);
+            return;
+          }
+          if (!VALID_ROLES.includes(userDoc.role)) {
+            await reject('Rol de usuario inválido. Contactá al administrador.', userDoc.role);
+            return;
+          }
+          setUser(firebaseUser);
+          setUserData(userDoc);
+          setError(null);
+          setLoading(false);
+          return;
+        }
+
+        // ---- Pending profesor (auto-provision) -------------------------------
+        const pendientesQuery = query(
+          collection(db, 'profesoresPendientes'),
+          where('email', '==', email),
+        );
+        const pendientesSnapshot = await getDocs(pendientesQuery);
+
+        if (pendientesSnapshot.empty) {
+          await reject(
+            'Usuario no registrado en el sistema. Contactá al administrador.',
+            email,
+          );
+          return;
+        }
+
+        const pendienteDoc = pendientesSnapshot.docs[0];
+        const pendienteData = pendienteDoc.data();
+        const pendienteRole = pendienteData?.role as string | undefined;
+
+        if (!pendienteRole || !VALID_ROLES.includes(pendienteRole as UserRole)) {
+          await reject(
+            'Configuración de usuario inválida. Contactá al administrador.',
+            pendienteRole,
+          );
+          return;
+        }
+
+        const now = Timestamp.now();
+        const newUserData: UserFirestore = {
+          displayName: firebaseUser.displayName ?? email ?? 'Usuario',
+          firstName: pendienteData.firstName as string,
+          lastName: pendienteData.lastName as string,
+          email: pendienteData.email as string,
+          role: pendienteRole as UserRole,
+          active: Boolean(pendienteData.active),
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await setDoc(doc(db, 'users', firebaseUser.uid), newUserData);
+        await deleteDoc(pendienteDoc.ref);
+
         setUser(firebaseUser);
-        setUserData(userDoc);
+        setUserData(newUserData);
         setError(null);
         setLoading(false);
       } catch (err) {
         console.error('Error in onAuthStateChanged handler:', err);
-        setUser(null);
-        setUserData(null);
-        setError('Error al autenticar usuario');
-        setLoading(false);
+        await reject('Error al autenticar usuario. Probá nuevamente.');
       }
     });
 
-    // Cleanup subscription on unmount
     return () => {
       unsubscribe();
     };
   }, []);
 
-  const value: AuthContextType = {
-    user,
-    userData,
-    cicloLectivoActivo,
-    loading,
-    error,
-  };
+  const value = useMemo<AuthContextType>(() => {
+    const role = userData?.role ?? null;
+    return {
+      user,
+      userData,
+      cicloLectivoActivo,
+      loading,
+      error,
+      isReadOnly: isReadOnlyRole(role),
+      isAuditor: role === 'auditor',
+    };
+  }, [user, userData, cicloLectivoActivo, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// ============================================================================
-// HOOK
-// ============================================================================
-
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-
   return context;
 }

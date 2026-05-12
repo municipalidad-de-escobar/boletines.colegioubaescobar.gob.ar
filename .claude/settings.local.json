@@ -8,7 +8,13 @@
       "Bash(git init *)",
       "Bash(npm run *)",
       "Bash(./node_modules/.bin/tsc *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(npm install *)",
+      "Bash(npm ls *)",
+      "Bash(npm view *)",
+      "Bash(curl -sS -o /tmp/smoke.html -w \"HTTP %{http_code}\\\\nbytes %{size_download}\\\\n\" http://localhost:5173/)",
+      "Read(//tmp/**)",
+      "Bash(curl *)"
     ]
   }
 }

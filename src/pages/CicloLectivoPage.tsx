@@ -55,7 +55,7 @@ function getSiguientePeriodo(actual: Periodo): Periodo | null {
 // ============================================================================
 
 export default function CicloLectivoPage() {
-  const { user } = useAuth();
+  const { user, isReadOnly } = useAuth();
 
   const [ciclo, setCiclo] = useState<CicloLectivoFirestore | null>(null);
   const [loading, setLoading] = useState(true);
@@ -221,6 +221,8 @@ export default function CicloLectivoPage() {
 
         {esCerrado ? (
           <Text c="dimmed">El ciclo está cerrado. No se puede avanzar.</Text>
+        ) : isReadOnly ? (
+          <Text c="dimmed" size="sm">Vista de solo lectura.</Text>
         ) : siguientePeriodo ? (
           <Button
             color={siguientePeriodo === 'cerrado' ? 'red' : 'blue'}
@@ -243,11 +245,13 @@ export default function CicloLectivoPage() {
               label="Firma 1 — Nombre"
               value={firma1Nombre}
               onChange={(e) => setFirma1Nombre(e.currentTarget.value)}
+              readOnly={isReadOnly}
             />
             <TextInput
               label="Firma 1 — Cargo"
               value={firma1Cargo}
               onChange={(e) => setFirma1Cargo(e.currentTarget.value)}
+              readOnly={isReadOnly}
             />
           </Group>
           <Group grow>
@@ -255,18 +259,22 @@ export default function CicloLectivoPage() {
               label="Firma 2 — Nombre"
               value={firma2Nombre}
               onChange={(e) => setFirma2Nombre(e.currentTarget.value)}
+              readOnly={isReadOnly}
             />
             <TextInput
               label="Firma 2 — Cargo"
               value={firma2Cargo}
               onChange={(e) => setFirma2Cargo(e.currentTarget.value)}
+              readOnly={isReadOnly}
             />
           </Group>
-          <Group justify="flex-end" mt="xs">
-            <Button onClick={handleGuardarConfig} loading={savingConfig}>
-              Guardar firmas
-            </Button>
-          </Group>
+          {!isReadOnly && (
+            <Group justify="flex-end" mt="xs">
+              <Button onClick={handleGuardarConfig} loading={savingConfig}>
+                Guardar firmas
+              </Button>
+            </Group>
+          )}
         </Stack>
       </Paper>
 

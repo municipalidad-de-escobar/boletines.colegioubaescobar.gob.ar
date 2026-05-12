@@ -1,14 +1,13 @@
 import { MantineProvider } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import { AuthProvider } from './contexts/AuthContext';
 import AppRoutes from './routes/AppRoutes';
-
-// ============================================================================
-// APP
-// ============================================================================
+import { theme } from './theme';
 
 export default function App() {
   return (
-    <MantineProvider>
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      <Notifications position="top-right" zIndex={2000} />
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

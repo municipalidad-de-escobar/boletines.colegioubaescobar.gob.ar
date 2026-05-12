@@ -58,7 +58,7 @@ const defaultCol6 = (): Col6State => ({ value: null, estado: null, habilitado: f
 const defaultCol7 = (): Col7State => ({ value: null, estado: null, habilitado: false, motivoHabilitacion: null });
 
 export default function CargaNotasPage() {
-  const { user, userData, cicloLectivoActivo } = useAuth();
+  const { user, userData, cicloLectivoActivo, isReadOnly } = useAuth();
   const esAdmin = userData?.role === 'admin';
 
   const [asignaciones, setAsignaciones] = useState<AsignacionDisplay[]>([]);
@@ -94,10 +94,10 @@ export default function CargaNotasPage() {
       : null
   );
 
-  const puedeEditarT1 = esAdmin || (cicloLectivoActivo ? rules.puedeEditarT1 : false);
-  const puedeEditarT2 = esAdmin || (cicloLectivoActivo ? rules.puedeEditarT2 : false);
-  const puedeEditarT3 = esAdmin || (cicloLectivoActivo ? rules.puedeEditarT3 : false);
-  const puedeEditarEvaluacion = esAdmin || (cicloLectivoActivo ? rules.puedeEditarEvaluacion : false);
+  const puedeEditarT1 = !isReadOnly && (esAdmin || (cicloLectivoActivo ? rules.puedeEditarT1 : false));
+  const puedeEditarT2 = !isReadOnly && (esAdmin || (cicloLectivoActivo ? rules.puedeEditarT2 : false));
+  const puedeEditarT3 = !isReadOnly && (esAdmin || (cicloLectivoActivo ? rules.puedeEditarT3 : false));
+  const puedeEditarEvaluacion = !isReadOnly && (esAdmin || (cicloLectivoActivo ? rules.puedeEditarEvaluacion : false));
 
   const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
     setMessage(msg);
@@ -524,9 +524,11 @@ export default function CargaNotasPage() {
               <Button variant="outline" onClick={handlePrint}>
                 Descargar PDF
               </Button>
-              <Button onClick={handleSave} loading={saving}>
-                Guardar todo
-              </Button>
+              {!isReadOnly && (
+                <Button onClick={handleSave} loading={saving}>
+                  Guardar todo
+                </Button>
+              )}
             </Group>
 
             {/* Componente oculto para imprimir */}

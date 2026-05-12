@@ -50,7 +50,7 @@ interface InasistenciaDisplay {
 // ============================================================================
 
 export default function InasistenciasPage() {
-  const { user, userData, cicloLectivoActivo } = useAuth();
+  const { user, userData, cicloLectivoActivo, isReadOnly } = useAuth();
 
   const [cursos, setCursos] = useState<(CursoFirestore & { id: string })[]>([]);
   const [selectedCursoId, setSelectedCursoId] = useState('');
@@ -344,11 +344,13 @@ export default function InasistenciasPage() {
               </Table>
             </Box>
 
-            <Group justify="flex-end" mt="md">
-              <Button onClick={handleSave} loading={saving}>
-                Guardar todo
-              </Button>
-            </Group>
+            {!isReadOnly && (
+              <Group justify="flex-end" mt="md">
+                <Button onClick={handleSave} loading={saving}>
+                  Guardar todo
+                </Button>
+              </Group>
+            )}
           </>
         ) : (
           <Center py="xl">

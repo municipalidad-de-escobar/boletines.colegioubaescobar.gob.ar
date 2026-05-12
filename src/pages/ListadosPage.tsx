@@ -107,7 +107,7 @@ const parseCsv = (file: File): Promise<Record<string, string>[]> =>
 const formatCourseName = (year: number, division: string) => `${year}°${division}`;
 
 export default function ListadosPage() {
-  const { cicloLectivoActivo } = useAuth();
+  const { cicloLectivoActivo, isReadOnly } = useAuth();
   const cicloLectivo = cicloLectivoActivo?.anio ?? new Date().getFullYear();
 
   const [tab, setTab] = useState('cursos');
@@ -831,7 +831,7 @@ const handleAddProfesorIndividual = async () => {
             <Text size="lg" fw={700}>
               Cursos activos
             </Text>
-            {canShowInitializeButton ? (
+            {!isReadOnly && canShowInitializeButton ? (
               <Button onClick={initializeCursos} loading={cursosLoading}>
                 Inicializar cursos
               </Button>
@@ -863,21 +863,23 @@ const handleAddProfesorIndividual = async () => {
             <Text size="lg" fw={700}>
               Materias por curso
             </Text>
-            <Group gap="xs">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setMateriaName('');
-                  setMateriaOrden('');
-                  setMateriaCreateModal(true);
-                }}
-              >
-                Agregar materia
-              </Button>
-              <Button variant="outline" onClick={() => setMateriasImportModal(true)}>
-                Importar CSV
-              </Button>
-            </Group>
+            {!isReadOnly && (
+              <Group gap="xs">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setMateriaName('');
+                    setMateriaOrden('');
+                    setMateriaCreateModal(true);
+                  }}
+                >
+                  Agregar materia
+                </Button>
+                <Button variant="outline" onClick={() => setMateriasImportModal(true)}>
+                  Importar CSV
+                </Button>
+              </Group>
+            )}
           </Group>
 
           <Select
@@ -908,28 +910,32 @@ const handleAddProfesorIndividual = async () => {
                     <Table.Td>{materia.name}</Table.Td>
                     <Table.Td>{materia.orden}</Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => {
-                            setMateriaEdit(materia);
-                            setMateriaName(materia.name);
-                            setMateriaOrden(String(materia.orden));
-                            setMateriaEditModal(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          color="red"
-                          size="xs"
-                          onClick={() => handleDeleteMateria(materia.id)}
-                        >
-                          Eliminar
-                        </Button>
-                      </Group>
+                      {!isReadOnly ? (
+                        <Group gap="xs">
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => {
+                              setMateriaEdit(materia);
+                              setMateriaName(materia.name);
+                              setMateriaOrden(String(materia.orden));
+                              setMateriaEditModal(true);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            color="red"
+                            size="xs"
+                            onClick={() => handleDeleteMateria(materia.id)}
+                          >
+                            Eliminar
+                          </Button>
+                        </Group>
+                      ) : (
+                        <Text size="xs" c="dimmed">—</Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -941,21 +947,23 @@ const handleAddProfesorIndividual = async () => {
         <Tabs.Panel value="alumnos" pt="md">
           <Group justify="space-between" mb="md">
   <Text size="lg" fw={700}>Alumnos por curso</Text>
-  <Group gap="xs">
-    <Button variant="outline" onClick={() => {
-      setAlumnoFirstName('');
-      setAlumnoLastName('');
-      setAlumnoDni('');
-      setAlumnoEmail('');
-      setAlumnoFechaNacimiento('');
-      setAlumnoAddModal(true);
-    }}>
-      Agregar alumno
-    </Button>
-    <Button variant="outline" onClick={() => setAlumnosImportModal(true)}>
-      Importar CSV
-    </Button>
-  </Group>
+  {!isReadOnly && (
+    <Group gap="xs">
+      <Button variant="outline" onClick={() => {
+        setAlumnoFirstName('');
+        setAlumnoLastName('');
+        setAlumnoDni('');
+        setAlumnoEmail('');
+        setAlumnoFechaNacimiento('');
+        setAlumnoAddModal(true);
+      }}>
+        Agregar alumno
+      </Button>
+      <Button variant="outline" onClick={() => setAlumnosImportModal(true)}>
+        Importar CSV
+      </Button>
+    </Group>
+  )}
 </Group>
 
           <Select
@@ -990,22 +998,26 @@ const handleAddProfesorIndividual = async () => {
                     <Table.Td>{alumno.dni}</Table.Td>
                     <Table.Td>{alumno.email || '-'}</Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Button variant="outline" size="xs" onClick={() => openAlumnoEdit(alumno)}>
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => {
-                            setTransferAlumno(alumno);
-                            setTransferTargetCursoId('');
-                            setTransferModal(true);
-                          }}
-                        >
-                          Transferir
-                        </Button>
-                      </Group>
+                      {!isReadOnly ? (
+                        <Group gap="xs">
+                          <Button variant="outline" size="xs" onClick={() => openAlumnoEdit(alumno)}>
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => {
+                              setTransferAlumno(alumno);
+                              setTransferTargetCursoId('');
+                              setTransferModal(true);
+                            }}
+                          >
+                            Transferir
+                          </Button>
+                        </Group>
+                      ) : (
+                        <Text size="xs" c="dimmed">—</Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -1017,14 +1029,16 @@ const handleAddProfesorIndividual = async () => {
         <Tabs.Panel value="profesores" pt="md">
           <Group justify="space-between" mb="md">
   <Text size="lg" fw={700}>Profesores</Text>
-  <Group gap="xs">
-    <Button variant="outline" onClick={() => setProfesorAddModal(true)}>
-      Agregar profesor
-    </Button>
-    <Button variant="outline" onClick={() => setProfesoresImportModal(true)}>
-      Importar CSV
-    </Button>
-  </Group>
+  {!isReadOnly && (
+    <Group gap="xs">
+      <Button variant="outline" onClick={() => setProfesorAddModal(true)}>
+        Agregar profesor
+      </Button>
+      <Button variant="outline" onClick={() => setProfesoresImportModal(true)}>
+        Importar CSV
+      </Button>
+    </Group>
+  )}
 </Group>
 
           {profesoresLoading ? (
@@ -1050,13 +1064,17 @@ const handleAddProfesorIndividual = async () => {
                     <Table.Td>{profesor.email}</Table.Td>
                     <Table.Td>{profesorAssignmentsCount[profesor.id] ?? 0}</Table.Td>
                     <Table.Td>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => openAssignmentModal(profesor.id)}
-                      >
-                        Gestionar asignaciones
-                      </Button>
+                      {!isReadOnly ? (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => openAssignmentModal(profesor.id)}
+                        >
+                          Gestionar asignaciones
+                        </Button>
+                      ) : (
+                        <Text size="xs" c="dimmed">—</Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -1068,18 +1086,20 @@ const handleAddProfesorIndividual = async () => {
         <Tabs.Panel value="usuarios" pt="md">
           <Group justify="space-between" mb="md">
             <Text size="lg" fw={700}>Usuarios y Roles</Text>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setUsuarioFirstName('');
-                setUsuarioLastName('');
-                setUsuarioEmail('');
-                setUsuarioRol('');
-                setUsuarioAddModal(true);
-              }}
-            >
-              Agregar usuario
-            </Button>
+            {!isReadOnly && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setUsuarioFirstName('');
+                  setUsuarioLastName('');
+                  setUsuarioEmail('');
+                  setUsuarioRol('');
+                  setUsuarioAddModal(true);
+                }}
+              >
+                Agregar usuario
+              </Button>
+            )}
           </Group>
 
           {usuariosLoading ? (
@@ -1109,21 +1129,25 @@ const handleAddProfesorIndividual = async () => {
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Button variant="outline" size="xs" onClick={() => openUsuarioEdit(u)}>
-                          Editar
-                        </Button>
-                        {u.active && (
-                          <Button
-                            variant="outline"
-                            color="gray"
-                            size="xs"
-                            onClick={() => handleDesactivarUsuario(u.id)}
-                          >
-                            Desactivar
+                      {!isReadOnly ? (
+                        <Group gap="xs">
+                          <Button variant="outline" size="xs" onClick={() => openUsuarioEdit(u)}>
+                            Editar
                           </Button>
-                        )}
-                      </Group>
+                          {u.active && (
+                            <Button
+                              variant="outline"
+                              color="gray"
+                              size="xs"
+                              onClick={() => handleDesactivarUsuario(u.id)}
+                            >
+                              Desactivar
+                            </Button>
+                          )}
+                        </Group>
+                      ) : (
+                        <Text size="xs" c="dimmed">—</Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))}
