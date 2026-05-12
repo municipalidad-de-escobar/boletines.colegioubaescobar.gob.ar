@@ -5,7 +5,10 @@
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(git config *)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(npm run *)",
+      "Bash(./node_modules/.bin/tsc *)",
+      "Bash(git *)"
     ]
   }
 }
