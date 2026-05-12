@@ -42,15 +42,13 @@ jobs:
         run: npm run build
 
       - name: Configure SSH
-        if: ${{ secrets.SERVER_HOST != '' }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy via rsync
-        if: ${{ secrets.SERVER_HOST != '' }}
         run: |
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
@@ -58,7 +56,6 @@ jobs:
             ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_HOST }}:/var/www/boletines.colegioubaescobar.gob.ar/
 
       - name: Set file permissions
-        if: ${{ secrets.SERVER_HOST != '' }}
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_HOST }} \
@@ -66,7 +63,6 @@ jobs:
              find /var/www/boletines.colegioubaescobar.gob.ar -type f -exec chmod 644 {} \;"
 
       - name: Health check
-        if: ${{ secrets.SERVER_HOST != '' }}
         run: |
           URL="https://boletines.colegioubaescobar.gob.ar"
           for i in 1 2 3; do
