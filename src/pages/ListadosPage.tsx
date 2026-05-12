@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Badge,
   Box,
   Button,
   Card,
@@ -44,6 +45,7 @@ import {
   transferirAlumno,
   updateAlumno,
   updateMateria,
+  updateUser,
 } from '../services/firebase/firestore';
 import type {
   AlumnoFirestore,
@@ -52,14 +54,37 @@ import type {
   MateriaFirestore,
   UserFirestore,
 } from '../types/firestore';
+import type { UserRole } from '../types/roles';
 
 type CursoOption = CursoFirestore & { id: string };
 type MateriaDoc = MateriaFirestore & { id: string };
 type AlumnoDoc = AlumnoFirestore & { id: string };
 type ProfesorDoc = UserFirestore & { id: string };
 type AsignacionDoc = AsignacionFirestore & { id: string };
+type UsuarioDoc = UserFirestore & { id: string };
+
+interface PendienteDoc {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  active: boolean;
+}
 
 type MessageType = 'success' | 'error';
+
+const STAFF_ROLES: UserRole[] = ['directivo', 'regente', 'secretaria', 'jefe_coordinacion', 'coordinador'];
+
+const STAFF_ROLE_LABELS: Record<string, string> = {
+  directivo: 'Directivo/a',
+  regente: 'Regente',
+  secretaria: 'Secretaria/o',
+  jefe_coordinacion: 'Jefe/a de Coordinación',
+  coordinador: 'Coordinador/a',
+};
+
+const staffRoleOptions = STAFF_ROLES.map((r) => ({ value: r, label: STAFF_ROLE_LABELS[r] }));
 
 const divisions = ['A', 'B', 'C', 'D'] as const;
 
@@ -123,6 +148,17 @@ export default function ListadosPage() {
   const [transferModal, setTransferModal] = useState(false);
   const [transferAlumno, setTransferAlumno] = useState<AlumnoDoc | null>(null);
   const [transferTargetCursoId, setTransferTargetCursoId] = useState('');
+
+  const [usuarios, setUsuarios] = useState<UsuarioDoc[]>([]);
+  const [usuariosPendientes, setUsuariosPendientes] = useState<PendienteDoc[]>([]);
+  const [usuariosLoading, setUsuariosLoading] = useState(false);
+  const [usuarioAddModal, setUsuarioAddModal] = useState(false);
+  const [usuarioEditModal, setUsuarioEditModal] = useState(false);
+  const [usuarioEdit, setUsuarioEdit] = useState<UsuarioDoc | null>(null);
+  const [usuarioFirstName, setUsuarioFirstName] = useState('');
+  const [usuarioLastName, setUsuarioLastName] = useState('');
+  const [usuarioEmail, setUsuarioEmail] = useState('');
+  const [usuarioRol, setUsuarioRol] = useState('');
 
   const [profesores, setProfesores] = useState<ProfesorDoc[]>([]);
   const [profesoresLoading, setProfesoresLoading] = useState(false);
@@ -262,9 +298,92 @@ export default function ListadosPage() {
     }
   };
 
+  const loadUsuarios = async () => {
+    setUsuariosLoading(true);
+    try {
+      const allUsers = await getAllUsers();
+      setUsuarios(allUsers.filter((u) => STAFF_ROLES.includes(u.role as UserRole)));
+
+      const snapshot = await getDocs(
+        query(collection(db, 'profesoresPendientes'), where('role', 'in', STAFF_ROLES))
+      );
+      setUsuariosPendientes(
+        snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PendienteDoc, 'id'>) }))
+      );
+    } catch {
+      showMessage('Error al cargar usuarios', 'error');
+    } finally {
+      setUsuariosLoading(false);
+    }
+  };
+
+  const handleAddUsuario = async () => {
+    if (!usuarioFirstName || !usuarioLastName || !usuarioEmail || !usuarioRol) {
+      showMessage('Complete todos los campos', 'error');
+      return;
+    }
+    try {
+      const pendienteRef = doc(collection(db, 'profesoresPendientes'));
+      await setDoc(pendienteRef, {
+        firstName: usuarioFirstName,
+        lastName: usuarioLastName,
+        email: usuarioEmail,
+        role: usuarioRol,
+        active: true,
+      });
+      setUsuarioAddModal(false);
+      setUsuarioFirstName('');
+      setUsuarioLastName('');
+      setUsuarioEmail('');
+      setUsuarioRol('');
+      await loadUsuarios();
+      showMessage('Usuario agregado. Será activo al ingresar por primera vez.');
+    } catch {
+      showMessage('Error al agregar usuario', 'error');
+    }
+  };
+
+  const openUsuarioEdit = (usuario: UsuarioDoc) => {
+    setUsuarioEdit(usuario);
+    setUsuarioFirstName(usuario.firstName);
+    setUsuarioLastName(usuario.lastName);
+    setUsuarioEmail(usuario.email);
+    setUsuarioRol(usuario.role);
+    setUsuarioEditModal(true);
+  };
+
+  const handleEditUsuario = async () => {
+    if (!usuarioEdit) return;
+    try {
+      await updateUser(usuarioEdit.id, {
+        firstName: usuarioFirstName,
+        lastName: usuarioLastName,
+        email: usuarioEmail,
+        role: usuarioRol as UserRole,
+      });
+      setUsuarioEditModal(false);
+      setUsuarioEdit(null);
+      await loadUsuarios();
+      showMessage('Usuario actualizado correctamente');
+    } catch {
+      showMessage('Error al actualizar usuario', 'error');
+    }
+  };
+
+  const handleDesactivarUsuario = async (uid: string) => {
+    try {
+      await updateUser(uid, { active: false });
+      await loadUsuarios();
+      showMessage('Usuario desactivado');
+    } catch {
+      showMessage('Error al desactivar usuario', 'error');
+    }
+  };
+
   useEffect(() => {
     loadCursos();
     loadProfesores();
+    loadUsuarios();
   }, []);
 
   useEffect(() => {
@@ -704,6 +823,7 @@ const handleAddProfesorIndividual = async () => {
           <Tabs.Tab value="materias">Materias</Tabs.Tab>
           <Tabs.Tab value="alumnos">Alumnos</Tabs.Tab>
           <Tabs.Tab value="profesores">Profesores y asignaciones</Tabs.Tab>
+          <Tabs.Tab value="usuarios">Usuarios y Roles</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="cursos" pt="md">
@@ -944,7 +1064,171 @@ const handleAddProfesorIndividual = async () => {
             </Table>
           )}
         </Tabs.Panel>
+
+        <Tabs.Panel value="usuarios" pt="md">
+          <Group justify="space-between" mb="md">
+            <Text size="lg" fw={700}>Usuarios y Roles</Text>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUsuarioFirstName('');
+                setUsuarioLastName('');
+                setUsuarioEmail('');
+                setUsuarioRol('');
+                setUsuarioAddModal(true);
+              }}
+            >
+              Agregar usuario
+            </Button>
+          </Group>
+
+          {usuariosLoading ? (
+            <Center py="xl"><Loader /></Center>
+          ) : (
+            <Table highlightOnHover verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Apellido</Table.Th>
+                  <Table.Th>Nombre</Table.Th>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Rol</Table.Th>
+                  <Table.Th>Estado</Table.Th>
+                  <Table.Th>Acciones</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {usuarios.map((u) => (
+                  <Table.Tr key={u.id}>
+                    <Table.Td>{u.lastName}</Table.Td>
+                    <Table.Td>{u.firstName}</Table.Td>
+                    <Table.Td>{u.email}</Table.Td>
+                    <Table.Td>{STAFF_ROLE_LABELS[u.role] ?? u.role}</Table.Td>
+                    <Table.Td>
+                      <Badge color={u.active ? 'green' : 'gray'}>
+                        {u.active ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <Button variant="outline" size="xs" onClick={() => openUsuarioEdit(u)}>
+                          Editar
+                        </Button>
+                        {u.active && (
+                          <Button
+                            variant="outline"
+                            color="gray"
+                            size="xs"
+                            onClick={() => handleDesactivarUsuario(u.id)}
+                          >
+                            Desactivar
+                          </Button>
+                        )}
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+                {usuariosPendientes.map((p) => (
+                  <Table.Tr key={p.id} style={{ opacity: 0.7 }}>
+                    <Table.Td>{p.lastName}</Table.Td>
+                    <Table.Td>{p.firstName}</Table.Td>
+                    <Table.Td>{p.email}</Table.Td>
+                    <Table.Td>{STAFF_ROLE_LABELS[p.role] ?? p.role}</Table.Td>
+                    <Table.Td>
+                      <Badge color="yellow">Pendiente de activación</Badge>
+                    </Table.Td>
+                    <Table.Td>—</Table.Td>
+                  </Table.Tr>
+                ))}
+                {usuarios.length === 0 && usuariosPendientes.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={6}>
+                      <Text c="dimmed" ta="center" py="md">No hay usuarios registrados</Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+          )}
+        </Tabs.Panel>
       </Tabs>
+
+      <Modal
+        opened={usuarioAddModal}
+        onClose={() => setUsuarioAddModal(false)}
+        title="Agregar usuario"
+      >
+        <Stack>
+          <TextInput
+            label="Apellido"
+            value={usuarioLastName}
+            onChange={(e) => setUsuarioLastName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Nombre"
+            value={usuarioFirstName}
+            onChange={(e) => setUsuarioFirstName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Email institucional"
+            value={usuarioEmail}
+            onChange={(e) => setUsuarioEmail(e.currentTarget.value)}
+            required
+          />
+          <Select
+            label="Rol"
+            data={staffRoleOptions}
+            value={usuarioRol}
+            onChange={(v) => setUsuarioRol(v ?? '')}
+            placeholder="Seleccione un rol"
+            required
+          />
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setUsuarioAddModal(false)}>Cancelar</Button>
+            <Button onClick={handleAddUsuario}>Agregar</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={usuarioEditModal}
+        onClose={() => setUsuarioEditModal(false)}
+        title="Editar usuario"
+      >
+        <Stack>
+          <TextInput
+            label="Apellido"
+            value={usuarioLastName}
+            onChange={(e) => setUsuarioLastName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Nombre"
+            value={usuarioFirstName}
+            onChange={(e) => setUsuarioFirstName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Email institucional"
+            value={usuarioEmail}
+            onChange={(e) => setUsuarioEmail(e.currentTarget.value)}
+            required
+          />
+          <Select
+            label="Rol"
+            data={staffRoleOptions}
+            value={usuarioRol}
+            onChange={(v) => setUsuarioRol(v ?? '')}
+            placeholder="Seleccione un rol"
+            required
+          />
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setUsuarioEditModal(false)}>Cancelar</Button>
+            <Button onClick={handleEditUsuario}>Guardar</Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={materiasImportModal}
