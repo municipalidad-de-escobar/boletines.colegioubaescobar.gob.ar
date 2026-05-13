@@ -13,25 +13,26 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconBrandGoogle, IconShieldLock } from '@tabler/icons-react';
-import { signInWithGoogle, handleGoogleRedirect } from '../services/firebase/auth';
+import { signInWithGoogle } from '../services/firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { INSTITUTIONAL_DOMAIN } from '../config/auditors';
 
 const SUPPORT_EMAIL = 'friaspaulina@colegioubaescobar.gob.ar';
+
+function describeAuthError(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+  if (code === 'auth/popup-closed-by-user') return 'Inicio de sesión cancelado.';
+  if (code === 'auth/cancelled-popup-request') return 'Inicio de sesión cancelado.';
+  if (code === 'auth/popup-blocked')
+    return 'El navegador bloqueó la ventana emergente. Permití pop-ups para este sitio y volvé a intentar.';
+  return err instanceof Error ? err.message : 'Error al iniciar sesión';
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { user, loading, error } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-
-  useEffect(() => {
-    handleGoogleRedirect()
-      .then(({ error: redirectError }) => {
-        if (redirectError) setLocalError(redirectError);
-      })
-      .finally(() => setIsSigningIn(false));
-  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -44,10 +45,11 @@ export default function LoginPage() {
     setIsSigningIn(true);
     try {
       await signInWithGoogle();
-      // signInWithRedirect navigates away; control returns only on failure.
+      // AuthContext.onAuthStateChanged takes over from here.
     } catch (err) {
+      setLocalError(describeAuthError(err));
+    } finally {
       setIsSigningIn(false);
-      setLocalError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     }
   };
 
